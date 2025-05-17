@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>TalkSphere</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="container">
+        <h1 class="title">💬 TalkSphere</h1>
+        <div class="chat-box" id="chatBox">
+            <ul id="messages"></ul>
+        </div>
+        <div class="input-area">
+            <input type="text" id="messageInput" placeholder="Type a message..." />
+            <button onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+    
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+       
+    let username = "";
+
+    window.onload = () => {
+        username = prompt("Enter your name:");
+        if (!username) {
+            username = "Anonymous";
+        }
+    };
+    const socket = io();
+
+        socket.on("connect", () => {
+            console.log("✅ Connected to server:", socket.id);
+        });
+        
+        socket.on("chatMessage", (data) => {
+                const li = document.createElement("li");
+                li.className = "message";
+                li.innerHTML = `${data.text} : <strong>${data.user.toUpperCase()}</strong> `;
+                document.getElementById("messages").appendChild(li);
+                li.scrollIntoView({ behavior: 'smooth' });
+
+                const sql = 'INSERT INTO messages (username, message) VALUES (?, ?)';
+                db.query(sql, [data.user, data.text], (err, result) => {
+                if (err) {
+                    console.error('❌ Error saving message:', err);
+                } else {
+                    console.log('✅ Message saved to database');
+                }
+            });
+        });
+
+
+        function sendMessage() {
+            const input = document.getElementById("messageInput");
+            const msg = input.value.trim();
+            if (msg) {
+                const messageData = {
+                    user: username,
+                    text: msg
+                };
+                socket.emit("chatMessage", messageData);
+                input.value = "";
+            }
+        }
+        document.getElementById('fileForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                const fileInput = document.getElementById('fileInput');
+                const file = fileInput.files[0];
+                if (!file) return;
+
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const res = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await res.json();
+
+                const messageData = {
+                    user: username,
+                    text: data.url,
+                    isFile: true,
+                    fileName: file.name
+                };
+
+                socket.emit("chatMessage", messageData);
+                fileInput.value = "";
+            });
+
+    </script>
+</body>
+
+</html>
